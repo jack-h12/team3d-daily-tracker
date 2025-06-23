@@ -36,18 +36,28 @@ window.addEventListener('DOMContentLoaded', async () => {
   const resetProgressBtn = document.getElementById('reset-progress-btn');
   const deleteAccountBtn = document.getElementById('delete-account-btn');
 
+  const loadingOverlay = document.getElementById('loading-overlay');
+
   let currentUser = null;
   let originalUserData = {};
+
+  function showLoading() {
+    loadingOverlay.classList.remove('hidden');
+  }
+  function hideLoading() {
+    loadingOverlay.classList.add('hidden');
+  }
+
+  // Show loading initially
+  showLoading();
 
   // Check initial session
   try {
     const { data: { session }, error } = await supabase.auth.getSession();
-    
     if (error) {
       console.error('Error getting session:', error);
       authMessage.textContent = 'Error checking authentication status';
     }
-
     if (session) {
       await handleUserLogin(session.user);
     } else {
@@ -56,26 +66,36 @@ window.addEventListener('DOMContentLoaded', async () => {
   } catch (error) {
     console.error('Error during initial auth check:', error);
     authMessage.textContent = 'Error checking authentication status';
+  } finally {
+    hideLoading();
   }
 
   // Listen for auth state changes
   supabase.auth.onAuthStateChange(async (event, session) => {
-    console.log('Auth state changed:', event, session);
-    
-    if (event === 'SIGNED_IN' && session) {
-      await handleUserLogin(session.user);
-    } else if (event === 'SIGNED_OUT') {
-      handleUserLogout();
+    showLoading();
+    try {
+      if (event === 'SIGNED_IN' && session) {
+        await handleUserLogin(session.user);
+      } else if (event === 'SIGNED_OUT') {
+        handleUserLogout();
+      }
+    } finally {
+      hideLoading();
     }
   });
 
   async function handleUserLogin(user) {
-    currentUser = user;
-    console.log("Logged in as:", user.email);
-    authMessage.textContent = `Welcome, ${user.email}!`;
-    
-    await loadUserProfile();
-    showProfileSection();
+    showLoading();
+    try {
+      currentUser = user;
+      let displayName = user.email;
+      console.log("Logged in as:", user.email);
+      authMessage.textContent = `Welcome, ${user.email}!`;
+      await loadUserProfile();
+      showProfileSection();
+    } finally {
+      hideLoading();
+    }
   }
 
   function handleUserLogout() {
@@ -114,8 +134,23 @@ window.addEventListener('DOMContentLoaded', async () => {
 
   async function loadUserProfile() {
     if (!currentUser) return;
-
+    showLoading();
     try {
+      // Map levels to avatar images
+      const levelAvatars = {
+        0: 'src/level-0-gollum.webp',
+        1: 'src/level-1-babythanos.webp',
+        2: 'src/level-2-boythanos.jpg',
+        3: 'src/level-3-injuredthanos.jpg',
+        4: 'src/level-4-basethanos.webp',
+        5: 'src/level-5-basethanosupgrade.webp',
+        6: 'src/level-6-thanoswithonestone.webp',
+        7: 'src/level-7-thanoswith2infinitystones.avif',
+        8: 'src/level-8-thanoswith4inifinitystones.jpg',
+        9: 'src/level-9-thanoswithallinfinitystones.webp',
+        10: 'src/level-10-thanosgoku.webp',
+      };
+
       const { data: userData, error } = await supabase
         .from('users')
         .select('*')
@@ -141,12 +176,19 @@ window.addEventListener('DOMContentLoaded', async () => {
         statMemberSince.textContent = date.toLocaleDateString();
       }
       
-      // Load avatar
+      // Load avatar: custom or level-based
       if (userData.avatar_url) {
         avatarImg.src = userData.avatar_url;
         avatarImg.style.display = 'block';
         avatarPlaceholder.style.display = 'none';
         removeAvatarBtn.style.display = 'inline-block';
+      } else {
+        // Use level-based avatar
+        const userLevel = userData.level || 0;
+        avatarImg.src = levelAvatars[userLevel] || levelAvatars[0];
+        avatarImg.style.display = 'block';
+        avatarPlaceholder.style.display = 'none';
+        removeAvatarBtn.style.display = 'none';
       }
       
       // Load stats
@@ -159,18 +201,17 @@ window.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
-  // Event listeners
+  // Google login event listener
   loginGoogleBtn.addEventListener('click', async () => {
+    showLoading();
     try {
       authMessage.textContent = 'Signing in...';
-      
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
           redirectTo: window.location.origin + '/profile.html'
         }
       });
-      
       if (error) {
         console.error('OAuth login error:', error);
         authMessage.textContent = `Login error: ${error.message}`;
@@ -178,10 +219,14 @@ window.addEventListener('DOMContentLoaded', async () => {
     } catch (error) {
       console.error('Login error:', error);
       authMessage.textContent = 'Login failed. Please try again.';
+    } finally {
+      hideLoading();
     }
   });
 
+  // Logout event listener
   logoutBtn.addEventListener('click', async () => {
+    showLoading();
     try {
       const { error } = await supabase.auth.signOut();
       if (error) {
@@ -190,6 +235,8 @@ window.addEventListener('DOMContentLoaded', async () => {
       }
     } catch (error) {
       console.error('Logout error:', error);
+    } finally {
+      hideLoading();
     }
   });
 

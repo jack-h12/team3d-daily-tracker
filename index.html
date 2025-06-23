@@ -37,19 +37,20 @@
     <p id="auth-message"></p>
   </div>
 
-
-
-
   <h1>TEAM 3D — 10 DAILY GOALS CHALLENGE</h1>
 
-  <input id="habit-input" type="text" placeholder="Enter your habit" />
-  <button id="add-habit-btn">Add Task</button>
-  <p id="task-count">Tasks added: 0 / 10</p>
-  <button id="start-day-btn" disabled>Start Day</button>
-  <button id="clear-btn">Clear All</button>
-
-  <div id="habit-list"></div>
-  <p id="level">Level: 0</p>
+  <div id="main-content-container" style="display:flex;gap:40px;align-items:flex-start;max-width:1200px;margin:0 auto;">
+    <div id="left-column" style="flex:0 0 320px;display:flex;flex-direction:column;align-items:center;"></div>
+    <div id="right-column" style="flex:1;min-width:0;">
+      <input id="habit-input" type="text" placeholder="Enter your habit" />
+      <button id="add-habit-btn">Add Task</button>
+      <p id="task-count">Tasks added: 0 / 10</p>
+      <button id="start-day-btn" disabled>Start Day</button>
+      <button id="clear-btn">Clear All</button>
+      <div id="habit-list"></div>
+      <p id="level">Level: 0</p>
+    </div>
+  </div>
 
   <script type="module" src="main.js"></script>
 </body>

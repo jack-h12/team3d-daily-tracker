@@ -6,6 +6,63 @@ const supabase = createClient(
 );
 
 window.addEventListener('DOMContentLoaded', async () => {
+  // Add avatar card to main page FIRST
+  const avatarCard = document.createElement('div');
+  avatarCard.id = 'main-avatar-card';
+  avatarCard.style.display = 'flex';
+  avatarCard.style.flexDirection = 'column';
+  avatarCard.style.justifyContent = 'center';
+  avatarCard.style.alignItems = 'center';
+  avatarCard.style.margin = '30px 0 10px 0';
+
+  // Main profile avatar (custom or fallback)
+  const avatarImg = document.createElement('img');
+  avatarImg.id = 'main-avatar-img';
+  avatarImg.style.width = '280px';
+  avatarImg.style.height = '280px';
+  avatarImg.style.borderRadius = '50%';
+  avatarImg.style.objectFit = 'cover';
+  avatarImg.style.border = '12px solid #f54242';
+  avatarImg.style.background = '#fff';
+  avatarImg.style.boxShadow = '0 8px 32px rgba(0,0,0,0.18)';
+  avatarImg.alt = 'Profile Avatar';
+  avatarCard.appendChild(avatarImg);
+
+  // Level avatar badge (always shows level-based avatar)
+  const levelAvatarBadge = document.createElement('div');
+  levelAvatarBadge.id = 'level-avatar-badge';
+  levelAvatarBadge.style.display = 'flex';
+  levelAvatarBadge.style.flexDirection = 'column';
+  levelAvatarBadge.style.alignItems = 'center';
+  levelAvatarBadge.style.marginTop = '18px';
+
+  const levelAvatarImg = document.createElement('img');
+  levelAvatarImg.id = 'level-avatar-img';
+  levelAvatarImg.style.width = '180px';
+  levelAvatarImg.style.height = '180px';
+  levelAvatarImg.style.borderRadius = '50%';
+  levelAvatarImg.style.objectFit = 'cover';
+  levelAvatarImg.style.border = '8px solid #f54242';
+  levelAvatarImg.style.background = '#fff';
+  levelAvatarImg.style.boxShadow = '0 4px 16px rgba(0,0,0,0.12)';
+  levelAvatarImg.alt = 'Level Avatar';
+  levelAvatarBadge.appendChild(levelAvatarImg);
+
+  const levelAvatarLabel = document.createElement('span');
+  levelAvatarLabel.textContent = 'Level Avatar';
+  levelAvatarLabel.style.fontSize = '0.95rem';
+  levelAvatarLabel.style.color = '#f54242';
+  levelAvatarLabel.style.marginTop = '2px';
+  levelAvatarBadge.appendChild(levelAvatarLabel);
+
+  avatarCard.appendChild(levelAvatarBadge);
+
+  // Insert avatar card into the left column of the new layout
+  const leftColumn = document.getElementById('left-column');
+  if (leftColumn) {
+    leftColumn.appendChild(avatarCard);
+  }
+
   // Get DOM elements
   const habitInput = document.getElementById('habit-input');
   const addHabitBtn = document.getElementById('add-habit-btn');
@@ -25,6 +82,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   let completedTasks = 0;
   let level = 0;
   let currentUser = null;
+  let currentUserAvatarUrl = null;
 
   // Loading overlay functions
   function showLoading() {
@@ -47,7 +105,38 @@ window.addEventListener('DOMContentLoaded', async () => {
   };
 
   const preDayList = document.createElement('div');
-  document.body.insertBefore(preDayList, habitList);
+  const rightColumn = document.getElementById('right-column');
+  if (rightColumn && habitList) {
+    rightColumn.insertBefore(preDayList, habitList);
+  }
+
+  // Level avatar mapping (now using /avatars/ for correct public path)
+  const levelAvatars = {
+    0: '/avatars/level-0-gollum.webp',
+    1: '/avatars/level-1-babythanos.webp',
+    2: '/avatars/level-2-boythanos.jpg',
+    3: '/avatars/level-3-injuredthanos.jpg',
+    4: '/avatars/level-4-basethanos.webp',
+    5: '/avatars/level-5-basethanosupgrade.webp',
+    6: '/avatars/level-6-thanoswithonestone.webp',
+    7: '/avatars/level-7-thanoswith2infinitystones.avif',
+    8: '/avatars/level-8-thanoswith4inifinitystones.jpg',
+    9: '/avatars/level-9-thanoswithallinfinitystones.webp',
+    10: '/avatars/level-10-thanosgoku.webp',
+  };
+
+  // Helper to update avatar image
+  function updateMainAvatar(userData) {
+    // Custom profile avatar (if any)
+    if (userData && userData.avatar_url) {
+      avatarImg.src = userData.avatar_url;
+    } else {
+      avatarImg.src = '/avatars/level-0-gollum.webp';
+    }
+    // Level avatar badge (always level-based)
+    const userLevel = userData && userData.level !== undefined ? userData.level : 0;
+    levelAvatarImg.src = levelAvatars[userLevel] || levelAvatars[0];
+  }
 
   // Check initial session
   try {
@@ -108,9 +197,8 @@ window.addEventListener('DOMContentLoaded', async () => {
 
   async function handleUserLogin(user) {
     currentUser = user;
-    console.log("Logged in as:", user.email);
-    authMessage.textContent = `Welcome, ${user.email}!`;
-
+    // Fetch user data to get the name
+    let displayName = user.email;
     try {
       // First, try to get existing user data
       const { data: existingUser, error: fetchError } = await supabase
@@ -119,19 +207,18 @@ window.addEventListener('DOMContentLoaded', async () => {
         .eq('id', user.id)
         .single();
 
-      console.log('Fetched user data:', existingUser);
-      console.log('Fetch error:', fetchError);
-
       if (existingUser && !fetchError) {
+        displayName = existingUser.name || user.email;
         // Load existing progress
         tasks = existingUser.tasks || [];
         completedTasks = existingUser.completed_tasks || 0;
         level = existingUser.level || 0;
-        
+        currentUserAvatarUrl = existingUser.avatar_url || null;
         console.log('Loaded from database:', { tasks, completedTasks, level });
         
         // Update UI with loaded data
         loadUserProgress();
+        updateMainAvatar({ avatar_url: currentUserAvatarUrl, level });
       } else {
         // Create new user record
         const { error } = await supabase.from('users').insert({
@@ -143,24 +230,29 @@ window.addEventListener('DOMContentLoaded', async () => {
           tasks: [],
           completed_tasks: 0
         });
-
+        currentUserAvatarUrl = user.user_metadata?.avatar_url ?? null;
         console.log('Created new user, error:', error);
 
         if (error) {
           console.error('Error creating user:', error);
           authMessage.textContent = 'Error saving user data';
         }
+        // Show default avatar
+        updateMainAvatar({ avatar_url: currentUserAvatarUrl, level: 0 });
       }
     } catch (error) {
       console.error('Database error:', error);
+      updateMainAvatar({ avatar_url: currentUserAvatarUrl, level: 0 });
     }
 
+    authMessage.textContent = `Welcome, ${displayName}!`;
     showHabitSection();
     await updateGroupProgressHeader();
   }
 
   function handleUserLogout() {
     currentUser = null;
+    currentUserAvatarUrl = null;
     authMessage.textContent = '';
     showLoginState();
     
@@ -174,12 +266,15 @@ window.addEventListener('DOMContentLoaded', async () => {
     taskCountText.textContent = "Tasks added: 0 / 10";
     yourProgress.textContent = "Level: 0";
     levelText.textContent = "Level: 0";
+    // Show default avatar
+    updateMainAvatar({ avatar_url: null, level: 0 });
   }
 
   function showLoginState() {
     loginGoogleBtn.style.display = 'block';
     logoutBtn.style.display = 'none';
-    
+    // Hide avatar card
+    avatarCard.style.display = 'none';
     // Hide habit controls
     habitInput.style.display = 'none';
     addHabitBtn.style.display = 'none';
@@ -192,7 +287,8 @@ window.addEventListener('DOMContentLoaded', async () => {
   function showHabitSection() {
     loginGoogleBtn.style.display = 'none';
     logoutBtn.style.display = 'block';
-    
+    // Show avatar card
+    avatarCard.style.display = 'flex';
     // Show habit controls
     habitInput.style.display = 'block';
     addHabitBtn.style.display = 'inline-block';
@@ -374,6 +470,8 @@ window.addEventListener('DOMContentLoaded', async () => {
       yourProgress.textContent = `Level: ${level}`;
       levelText.textContent = `Level: ${level}`;
     }
+    // Update the level avatar live, always pass avatar_url
+    updateMainAvatar({ avatar_url: currentUserAvatarUrl, level });
   }
 
   function loadUserProgress() {
@@ -383,9 +481,12 @@ window.addEventListener('DOMContentLoaded', async () => {
     // Update level display
     updateLevel();
     
+    // Always clear both lists before rendering
+    preDayList.innerHTML = "";
+    habitList.innerHTML = "";
+
     // If user has tasks but hasn't started the day, show them in pre-day list
     if (tasks.length > 0 && completedTasks === 0) {
-      preDayList.innerHTML = "";
       tasks.forEach(task => {
         const taskItem = document.createElement('div');
         taskItem.classList.add('habit-item');
@@ -416,7 +517,6 @@ window.addEventListener('DOMContentLoaded', async () => {
           preDayList.removeChild(taskItem);
           taskCountText.textContent = `Tasks added: ${tasks.length} / 10`;
           startDayBtn.disabled = tasks.length < 10;
-          
           // Save updated tasks to database
           await saveUserProgress();
         });
@@ -425,22 +525,17 @@ window.addEventListener('DOMContentLoaded', async () => {
         taskItem.appendChild(removeBtn);
         preDayList.appendChild(taskItem);
       });
-      
       startDayBtn.disabled = tasks.length < 10;
     }
-    
     // If user has started the day (has completed tasks tracked), show checkboxes
-    if (tasks.length > 0 && completedTasks >= 0) {
-      habitList.innerHTML = "";
+    else if (tasks.length > 0 && completedTasks > 0) {
       let currentCompletedCount = 0;
-      
       tasks.forEach((task, index) => {
         const habitItem = document.createElement('div');
         habitItem.classList.add('habit-item');
 
         const checkbox = document.createElement('input');
         checkbox.type = 'checkbox';
-        
         // Check if this task should be completed based on our completed count
         if (currentCompletedCount < completedTasks) {
           checkbox.checked = true;
@@ -459,7 +554,6 @@ window.addEventListener('DOMContentLoaded', async () => {
           }
           updateLevel();
           label.style.textDecoration = checkbox.checked ? 'line-through' : 'none';
-          
           // Save progress to database
           await saveUserProgress();
         });
@@ -468,7 +562,6 @@ window.addEventListener('DOMContentLoaded', async () => {
         habitItem.appendChild(label);
         habitList.appendChild(habitItem);
       });
-      
       // Hide the pre-day controls if day has started
       if (completedTasks > 0 || tasks.length === 10) {
         habitInput.style.display = "none";

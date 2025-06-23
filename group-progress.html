@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>TEAM 3D - Group Progress</title>
+  <link rel="stylesheet" href="style.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+</head>
+<body>
+  <header id="header-bar">
+    <a href="index.html" id="your-progress-btn" class="progress-section">
+        <h2>Your Daily Progress</h2>
+        <p id="your-progress">Level: 0</p>
+    </a>
+    <a href="group-progress.html" id="group-progress-btn" class="progress-section">
+        <h2>Group Progress</h2>
+        <p id="group-progress">Loading...</p>
+    </a>
+    <a href="profile.html" id="profile-btn" class="progress-section">
+        <h2>Profile</h2>
+        <p id="profile-name">Settings</p>
+    </a>
+    </header>
+
+  <div id="auth-section">
+    <button id="google-login-btn">Sign in with Google</button>
+    <button id="logout-btn" style="display:none;">Logout</button>
+    <p id="auth-message"></p>
+  </div>
+
+  <h1>TEAM 3D — GROUP PROGRESS</h1>
+
+  <div id="group-stats">
+    <div class="stat-card">
+      <h3>Total Members</h3>
+      <p id="total-members">0</p>
+    </div>
+    <div class="stat-card">
+      <h3>Average Level</h3>
+      <p id="average-level">0</p>
+    </div>
+    <div class="stat-card">
+      <h3>Total Tasks Completed</h3>
+      <p id="total-completed">0</p>
+    </div>
+  </div>
+
+  <div id="leaderboard-section">
+    <h2>🏆 Daily Leaderboard</h2>
+    <button id="refresh-leaderboard">🔄 Refresh</button>
+    <div id="leaderboard"></div>
+  </div>
+
+  <script type="module" src="group-progress.js"></script>
+</body>
+</html>

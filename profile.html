@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>TEAM 3D - Profile Settings</title>
+  <link rel="stylesheet" href="style.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+</head>
+<body>
+  <header id="header-bar">
+    <a href="index.html" id="your-progress-btn" class="progress-section">
+      <h2>Your Daily Progress</h2>
+      <p>← Back to Tracker</p>
+    </a>
+    <a href="group-progress.html" id="group-progress-btn" class="progress-section">
+      <h2>Group Progress</h2>
+      <p id="group-progress">Loading...</p>
+    </a>
+    <a href="#" id="profile-btn" class="progress-section active">
+      <h2>Profile</h2>
+      <p>Settings</p>
+    </a>
+  </header>
+
+  <div id="auth-section">
+    <button id="google-login-btn">Sign in with Google</button>
+    <button id="logout-btn" style="display:none;">Logout</button>
+    <p id="auth-message"></p>
+  </div>
+
+  <h1>TEAM 3D — PROFILE SETTINGS</h1>
+
+  <div id="profile-section" style="display: none;">
+    <div id="profile-card">
+      <div id="avatar-section">
+        <div id="avatar-display">
+          <img id="avatar-img" src="" alt="Profile Avatar" style="display: none;">
+          <div id="avatar-placeholder">👤</div>
+        </div>
+        <div id="avatar-controls">
+          <input type="file" id="avatar-upload" accept="image/*" style="display: none;">
+          <button id="change-avatar-btn">Change Avatar</button>
+          <button id="remove-avatar-btn" style="display: none;">Remove Avatar</button>
+        </div>
+      </div>
+
+      <div id="profile-form">
+        <div class="form-group">
+          <label for="display-name">Display Name</label>
+          <input type="text" id="display-name" placeholder="Enter your display name" maxlength="30">
+          <small>This is how other users will see you</small>
+        </div>
+
+        <div class="form-group">
+          <label for="email-display">Email</label>
+          <input type="email" id="email-display" disabled>
+          <small>Email cannot be changed</small>
+        </div>
+
+        <div class="form-group">
+          <label>Account Created</label>
+          <p id="created-date">-</p>
+        </div>
+
+        <div class="form-actions">
+          <button id="save-profile-btn">💾 Save Changes</button>
+          <button id="reset-profile-btn">🔄 Reset</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="profile-stats">
+      <h2>📊 Your Stats</h2>
+      <div class="stats-grid">
+        <div class="stat-item">
+          <h3>Current Level</h3>
+          <p id="stat-level">0</p>
+        </div>
+        <div class="stat-item">
+          <h3>Tasks Completed</h3>
+          <p id="stat-completed">0</p>
+        </div>
+        <div class="stat-item">
+          <h3>Active Tasks</h3>
+          <p id="stat-active">0</p>
+        </div>
+        <div class="stat-item">
+          <h3>Member Since</h3>
+          <p id="stat-member-since">-</p>
+        </div>
+      </div>
+    </div>
+
+    <div id="danger-zone">
+      <h2>⚠️ Danger Zone</h2>
+      <div class="danger-actions">
+        <button id="reset-progress-btn" class="danger-btn">Reset All Progress</button>
+        <button id="delete-account-btn" class="danger-btn">Delete Account</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="profile.js"></script>
+</body>
+</html>

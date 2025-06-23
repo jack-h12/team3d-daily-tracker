@@ -19,11 +19,24 @@ window.addEventListener('DOMContentLoaded', async () => {
   const logoutBtn = document.getElementById('logout-btn');
   const authMessage = document.getElementById('auth-message');
   const habitSection = document.getElementById('habit-section'); // You might need to add this div around your habit controls
+  const loadingOverlay = document.getElementById('loading-overlay');
 
   let tasks = [];
   let completedTasks = 0;
   let level = 0;
   let currentUser = null;
+
+  // Loading overlay functions
+  function showLoading() {
+    loadingOverlay.classList.remove('hidden');
+  }
+
+  function hideLoading() {
+    loadingOverlay.classList.add('hidden');
+  }
+
+  // Show loading initially
+  showLoading();
 
   // Make variables globally accessible for debugging
   window.debugInfo = {
@@ -53,6 +66,9 @@ window.addEventListener('DOMContentLoaded', async () => {
   } catch (error) {
     console.error('Error during initial auth check:', error);
     authMessage.textContent = 'Error checking authentication status';
+  } finally {
+    // Hide loading after authentication check is complete
+    hideLoading();
   }
 
   // Listen for auth state changes
@@ -65,6 +81,30 @@ window.addEventListener('DOMContentLoaded', async () => {
       handleUserLogout();
     }
   });
+
+  async function updateGroupProgressHeader() {
+    const groupProgressEl = document.getElementById('group-progress');
+    
+    try {
+      const { data: users, error } = await supabase
+        .from('users')
+        .select('level, completed_tasks');
+      
+      if (error) {
+        groupProgressEl.textContent = 'Error loading';
+        return;
+      }
+      
+      const totalMembers = users.length;
+      const averageLevel = totalMembers > 0 
+        ? (users.reduce((sum, user) => sum + (user.level || 0), 0) / totalMembers).toFixed(1)
+        : 0;
+      
+      groupProgressEl.textContent = `${totalMembers} members, avg ${averageLevel}`;
+    } catch (error) {
+      groupProgressEl.textContent = 'Error loading';
+    }
+  }
 
   async function handleUserLogin(user) {
     currentUser = user;
@@ -116,6 +156,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     }
 
     showHabitSection();
+    await updateGroupProgressHeader();
   }
 
   function handleUserLogout() {
@@ -327,12 +368,12 @@ window.addEventListener('DOMContentLoaded', async () => {
     if (level > 10) level = 10;
 
     if (level === 10) {
-      yourProgress.textContent = "🔥🦍🦍  LFG!!!!! DAY CONQUERED — LEVEL 10 🦍🦍🔥";
+      yourProgress.textContent = "Level: 10";
+      levelText.textContent = "🔥🦍🦍  LFG!!!!! DAY CONQUERED — LEVEL 10 🦍🦍🔥";
     } else {
       yourProgress.textContent = `Level: ${level}`;
+      levelText.textContent = `Level: ${level}`;
     }
-
-    levelText.textContent = yourProgress.textContent;
   }
 
   function loadUserProgress() {

@@ -251,7 +251,23 @@ window.addEventListener('DOMContentLoaded', async () => {
   }
 
   function handleUserLogout() {
-    window.location.href = '/login.html';
+    currentUser = null;
+    currentUserAvatarUrl = null;
+    authMessage.textContent = '';
+    showLoginState();
+    
+    // Reset all data
+    tasks = [];
+    completedTasks = 0;
+    level = 0;
+    preDayList.innerHTML = "";
+    habitList.innerHTML = "";
+    habitInput.value = "";
+    taskCountText.textContent = "Tasks added: 0 / 10";
+    yourProgress.textContent = "Level: 0";
+    levelText.textContent = "Level: 0";
+    // Show default avatar
+    updateMainAvatar({ avatar_url: null, level: 0 });
   }
 
   function showLoginState() {
@@ -305,7 +321,17 @@ window.addEventListener('DOMContentLoaded', async () => {
   });
 
   // Logout event listener
-  logoutBtn.addEventListener('click', handleLogout);
+  logoutBtn.addEventListener('click', async () => {
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        console.error('Logout error:', error);
+        authMessage.textContent = `Logout error: ${error.message}`;
+      }
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
+  });
 
   addHabitBtn.addEventListener('click', async () => {
     const habitText = habitInput.value.trim();
@@ -568,24 +594,6 @@ window.addEventListener('DOMContentLoaded', async () => {
       }
     } catch (error) {
       console.error('Error saving progress:', error);
-    }
-  }
-
-  async function handleLogout() {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
-      window.location.href = '/login.html';
-      return;
-    }
-    try {
-      await supabase.auth.signOut();
-      window.location.href = '/login.html';
-    } catch (error) {
-      if (error.name === 'AuthSessionMissingError') {
-        window.location.href = '/login.html';
-        return;
-      }
-      console.error('Logout error:', error);
     }
   }
 });

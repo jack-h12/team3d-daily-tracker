@@ -321,16 +321,29 @@ window.addEventListener('DOMContentLoaded', async () => {
       leaderboard.innerHTML = '<p>No users found.</p>';
       return;
     }
+    let lastLevel = null;
+    let lastRank = 0;
+    let equalCount = 0;
+    let rankLabels = [];
     users.forEach((user, index) => {
-      const userCard = document.createElement('div');
-      userCard.className = 'user-card';
-      // Add special styling for current user
-      const isCurrentUser = currentUser && user.email === currentUser.email;
-      if (isCurrentUser) {
-        userCard.classList.add('current-user');
+      if (user.level === lastLevel) {
+        equalCount++;
+      } else {
+        lastRank = lastRank + equalCount + 1;
+        equalCount = 0;
+        lastLevel = user.level;
       }
-      const rank = index + 1;
-      const rankEmoji = getRankEmoji(rank);
+      rankLabels.push({ rank: lastRank, level: user.level });
+    });
+    // Second pass: assign rank labels with '=' for all tied users
+    users.forEach((user, index) => {
+      const { rank, level } = rankLabels[index];
+      // Check if this level appears more than once
+      const isTied = rankLabels.filter(r => r.level === level).length > 1;
+      let rankLabel = ordinalSuffixOf(rank) + (isTied ? '=' : '');
+      // Medal only for rank 1-3 and level < 4
+      let rankEmoji = '';
+      if ((user.level || 0) < 4 && rank <= 3) rankEmoji = getRankEmoji(rank);
       const levelEmoji = getLevelEmoji(user.level || 0);
       const avatar = getUserAvatar(user);
       let avatarHTML = '';
@@ -351,6 +364,7 @@ window.addEventListener('DOMContentLoaded', async () => {
       let removeUserButton = '';
       let resetProgressButton = '';
       let emailInfo = '';
+      const isCurrentUser = currentUser && user.email === currentUser.email;
       if (currentUserIsAdmin && !isCurrentUser) {
         if (user.is_admin) {
           adminButton = `<button class="toggle-admin-btn" data-user-id="${user.id}" data-make-admin="false" style="margin-top:8px;background:#f54242;color:#fff;border:none;padding:6px 14px;border-radius:6px;cursor:pointer;">Remove Admin</button>`;
@@ -361,9 +375,14 @@ window.addEventListener('DOMContentLoaded', async () => {
         resetProgressButton = `<button class="reset-progress-btn" data-user-id="${user.id}" style="margin-top:8px;background:#f5a142;color:#fff;border:none;padding:6px 14px;border-radius:6px;cursor:pointer;">Reset Progress</button>`;
         emailInfo = `<p style="font-size:0.95rem;color:#888;margin:2px 0 0 0;">${user.email}</p>`;
       }
+      const userCard = document.createElement('div');
+      userCard.className = 'user-card';
+      if (isCurrentUser) {
+        userCard.classList.add('current-user');
+      }
       userCard.innerHTML = `
         <div class="user-rank">
-          <span class="rank-number">${rankEmoji} #${rank}</span>
+          <span class="rank-number">${rankEmoji} #${rankLabel}</span>
         </div>
         <div class="user-info" style="display:flex;align-items:center;gap:8px;">
           ${avatarHTML}
@@ -385,14 +404,11 @@ window.addEventListener('DOMContentLoaded', async () => {
           </div>
         </div>
       `;
-      // Add click event to show tasks modal
       userCard.style.cursor = 'pointer';
       userCard.onclick = (e) => {
-        // Prevent modal if admin button is clicked
         if (e.target.classList.contains('toggle-admin-btn')) return;
         showUserTasksModal(user);
       };
-      // Add event for admin button
       if (adminButton) {
         userCard.querySelector('.toggle-admin-btn').onclick = (e) => {
           e.stopPropagation();
@@ -401,7 +417,6 @@ window.addEventListener('DOMContentLoaded', async () => {
           toggleAdmin(userId, makeAdmin);
         };
       }
-      // Add event for remove user button
       if (removeUserButton) {
         userCard.querySelector('.remove-user-btn').onclick = async (e) => {
           e.stopPropagation();
@@ -421,7 +436,6 @@ window.addEventListener('DOMContentLoaded', async () => {
           }
         };
       }
-      // Add event for reset progress button
       if (resetProgressButton) {
         userCard.querySelector('.reset-progress-btn').onclick = async (e) => {
           e.stopPropagation();
@@ -443,6 +457,14 @@ window.addEventListener('DOMContentLoaded', async () => {
       }
       leaderboard.appendChild(userCard);
     });
+  }
+
+  function ordinalSuffixOf(i) {
+    const j = i % 10, k = i % 100;
+    if (j == 1 && k != 11) return i + 'st';
+    if (j == 2 && k != 12) return i + 'nd';
+    if (j == 3 && k != 13) return i + 'rd';
+    return i + 'th';
   }
 
   function getRankEmoji(rank) {

@@ -85,8 +85,10 @@ window.addEventListener('DOMContentLoaded', async () => {
   const authMessage = document.getElementById('auth-message');
   const habitSection = document.getElementById('habit-section'); // You might need to add this div around your habit controls
   const loadingOverlay = document.getElementById('loading-overlay');
+  const rewardInput = document.getElementById('reward-input');
 
   let tasks = [];
+  let rewards = [];
   let completedTasks = 0;
   let level = 0;
   let currentUser = null;
@@ -219,6 +221,7 @@ window.addEventListener('DOMContentLoaded', async () => {
         displayName = existingUser.name || user.email;
         // Load existing progress
         tasks = existingUser.tasks || [];
+        rewards = existingUser.rewards || [];
         completedTasks = existingUser.completed_tasks || 0;
         level = existingUser.level || 0;
         currentUserAvatarUrl = existingUser.avatar_url || null;
@@ -236,6 +239,7 @@ window.addEventListener('DOMContentLoaded', async () => {
           avatar_url: user.user_metadata?.avatar_url ?? null,
           level: 0,
           tasks: [],
+          rewards: [],
           completed_tasks: 0
         });
         currentUserAvatarUrl = user.user_metadata?.avatar_url ?? null;
@@ -266,16 +270,19 @@ window.addEventListener('DOMContentLoaded', async () => {
     
     // Reset all data
     tasks = [];
+    rewards = [];
     completedTasks = 0;
     level = 0;
     preDayList.innerHTML = "";
     habitList.innerHTML = "";
     habitInput.value = "";
+    rewardInput.value = "";
     taskCountText.textContent = "Tasks added: 0 / 10";
     yourProgress.textContent = "Level: 0";
     levelText.textContent = "Level: 0";
     // Show default avatar
     updateMainAvatar({ avatar_url: null, level: 0 });
+    rewardInput.style.display = 'none';
   }
 
   function showLoginState() {
@@ -290,6 +297,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     clearBtn.style.display = 'none';
     taskCountText.style.display = 'none';
     levelText.style.display = 'none';
+    rewardInput.style.display = 'none';
   }
 
   function showHabitSection() {
@@ -304,6 +312,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     clearBtn.style.display = 'inline-block';
     taskCountText.style.display = 'block';
     levelText.style.display = 'block';
+    rewardInput.style.display = 'block';
   }
 
   // Google login event listener
@@ -362,18 +371,23 @@ window.addEventListener('DOMContentLoaded', async () => {
 
   addHabitBtn.addEventListener('click', async () => {
     const habitText = habitInput.value.trim();
-
+    const rewardText = rewardInput.value.trim();
     if (habitText !== "" && tasks.length < 10) {
       tasks.push(habitText);
+      rewards.push(rewardText); // Can be empty string
       taskCountText.textContent = `Tasks added: ${tasks.length} / 10`;
       habitInput.value = "";
-
+      rewardInput.value = "";
       const taskItem = document.createElement('div');
       taskItem.classList.add('habit-item');
-
       const label = document.createElement('span');
       label.textContent = habitText;
-
+      // Reward display (optional)
+      const rewardLabel = document.createElement('span');
+      rewardLabel.style.fontStyle = 'italic';
+      rewardLabel.style.color = '#888';
+      rewardLabel.style.marginLeft = '10px';
+      if (rewardText) rewardLabel.textContent = `🎁 ${rewardText}`;
       const removeBtn = document.createElement('button');
       removeBtn.textContent = '❌';
       removeBtn.style.marginLeft = 'auto';
@@ -388,31 +402,22 @@ window.addEventListener('DOMContentLoaded', async () => {
       removeBtn.style.display = 'flex';
       removeBtn.style.alignItems = 'center';
       removeBtn.style.justifyContent = 'center';
-
       removeBtn.addEventListener('click', async () => {
         const index = tasks.indexOf(habitText);
         if (index > -1) {
           tasks.splice(index, 1);
+          rewards.splice(index, 1);
         }
         preDayList.removeChild(taskItem);
         taskCountText.textContent = `Tasks added: ${tasks.length} / 10`;
-        if (tasks.length < 10) {
-          startDayBtn.disabled = true;
-        }
-        
-        // Save updated tasks to database
+        startDayBtn.disabled = tasks.length < 1;
         await saveUserProgress();
       });
-
       taskItem.appendChild(label);
+      if (rewardText) taskItem.appendChild(rewardLabel);
       taskItem.appendChild(removeBtn);
       preDayList.appendChild(taskItem);
-
-      if (tasks.length === 10) {
-        startDayBtn.disabled = false;
-      }
-      
-      // Save updated tasks to database
+      startDayBtn.disabled = tasks.length < 1;
       await saveUserProgress();
     }
   });
@@ -421,20 +426,21 @@ window.addEventListener('DOMContentLoaded', async () => {
     completedTasks = 0;
     level = 0;
     updateLevel();
-
     habitList.innerHTML = "";
     preDayList.innerHTML = "";
-
-    tasks.forEach(task => {
+    tasks.forEach((task, idx) => {
       const habitItem = document.createElement('div');
       habitItem.classList.add('habit-item');
-
       const checkbox = document.createElement('input');
       checkbox.type = 'checkbox';
-
       const label = document.createElement('span');
       label.textContent = task;
-
+      // Reward display (optional)
+      const rewardLabel = document.createElement('span');
+      rewardLabel.style.fontStyle = 'italic';
+      rewardLabel.style.color = '#888';
+      rewardLabel.style.marginLeft = '10px';
+      if (rewards[idx]) rewardLabel.textContent = `🎁 ${rewards[idx]}`;
       checkbox.addEventListener('change', async () => {
         if (checkbox.checked) {
           completedTasks = Math.min(completedTasks + 1, 10);
@@ -443,45 +449,39 @@ window.addEventListener('DOMContentLoaded', async () => {
         }
         updateLevel();
         label.style.textDecoration = checkbox.checked ? 'line-through' : 'none';
-        
-        // Save progress to database
         await saveUserProgress();
       });
-
       habitItem.appendChild(checkbox);
       habitItem.appendChild(label);
+      if (rewards[idx]) habitItem.appendChild(rewardLabel);
       habitList.appendChild(habitItem);
     });
-
     habitInput.style.display = "none";
+    rewardInput.style.display = "none";
     addHabitBtn.style.display = "none";
     startDayBtn.style.display = "none";
     taskCountText.style.display = "none";
-    
-    // Save that user has started their day
     await saveUserProgress();
   });
 
   clearBtn.addEventListener('click', async () => {
     tasks = [];
+    rewards = [];
     completedTasks = 0;
     level = 0;
-
     preDayList.innerHTML = "";
     habitList.innerHTML = "";
-
     habitInput.style.display = "block";
+    rewardInput.style.display = "block";
     addHabitBtn.style.display = "inline-block";
     startDayBtn.style.display = "inline-block";
     taskCountText.style.display = "block";
-
     habitInput.value = "";
+    rewardInput.value = "";
     taskCountText.textContent = "Tasks added: 0 / 10";
     yourProgress.textContent = "Level: 0";
     levelText.textContent = "Level: 0";
     startDayBtn.disabled = true;
-    
-    // Save cleared progress to database
     await saveUserProgress();
   });
 
@@ -502,25 +502,22 @@ window.addEventListener('DOMContentLoaded', async () => {
   }
 
   function loadUserProgress() {
-    // Update task counter
     taskCountText.textContent = `Tasks added: ${tasks.length} / 10`;
-    
-    // Update level display
     updateLevel();
-    
-    // Always clear both lists before rendering
     preDayList.innerHTML = "";
     habitList.innerHTML = "";
-
-    // If user has tasks but hasn't started the day, show them in pre-day list
     if (tasks.length > 0 && completedTasks === 0) {
-      tasks.forEach(task => {
+      tasks.forEach((task, idx) => {
         const taskItem = document.createElement('div');
         taskItem.classList.add('habit-item');
-
         const label = document.createElement('span');
         label.textContent = task;
-
+        // Reward display (optional)
+        const rewardLabel = document.createElement('span');
+        rewardLabel.style.fontStyle = 'italic';
+        rewardLabel.style.color = '#888';
+        rewardLabel.style.marginLeft = '10px';
+        if (rewards[idx]) rewardLabel.textContent = `🎁 ${rewards[idx]}`;
         const removeBtn = document.createElement('button');
         removeBtn.textContent = '❌';
         removeBtn.style.marginLeft = 'auto';
@@ -535,44 +532,44 @@ window.addEventListener('DOMContentLoaded', async () => {
         removeBtn.style.display = 'flex';
         removeBtn.style.alignItems = 'center';
         removeBtn.style.justifyContent = 'center';
-
         removeBtn.addEventListener('click', async () => {
           const index = tasks.indexOf(task);
           if (index > -1) {
             tasks.splice(index, 1);
+            rewards.splice(index, 1);
           }
           preDayList.removeChild(taskItem);
           taskCountText.textContent = `Tasks added: ${tasks.length} / 10`;
-          startDayBtn.disabled = tasks.length < 10;
-          // Save updated tasks to database
+          startDayBtn.disabled = tasks.length < 1;
           await saveUserProgress();
         });
-
         taskItem.appendChild(label);
+        if (rewards[idx]) taskItem.appendChild(rewardLabel);
         taskItem.appendChild(removeBtn);
         preDayList.appendChild(taskItem);
       });
-      startDayBtn.disabled = tasks.length < 10;
+      startDayBtn.disabled = tasks.length < 1;
     }
-    // If user has started the day (has completed tasks tracked), show checkboxes
     else if (tasks.length > 0 && completedTasks > 0) {
       let currentCompletedCount = 0;
-      tasks.forEach((task, index) => {
+      tasks.forEach((task, idx) => {
         const habitItem = document.createElement('div');
         habitItem.classList.add('habit-item');
-
         const checkbox = document.createElement('input');
         checkbox.type = 'checkbox';
-        // Check if this task should be completed based on our completed count
         if (currentCompletedCount < completedTasks) {
           checkbox.checked = true;
           currentCompletedCount++;
         }
-
         const label = document.createElement('span');
         label.textContent = task;
         label.style.textDecoration = checkbox.checked ? 'line-through' : 'none';
-
+        // Reward display (optional)
+        const rewardLabel = document.createElement('span');
+        rewardLabel.style.fontStyle = 'italic';
+        rewardLabel.style.color = '#888';
+        rewardLabel.style.marginLeft = '10px';
+        if (rewards[idx]) rewardLabel.textContent = `🎁 ${rewards[idx]}`;
         checkbox.addEventListener('change', async () => {
           if (checkbox.checked) {
             completedTasks = Math.min(completedTasks + 1, 10);
@@ -581,17 +578,16 @@ window.addEventListener('DOMContentLoaded', async () => {
           }
           updateLevel();
           label.style.textDecoration = checkbox.checked ? 'line-through' : 'none';
-          // Save progress to database
           await saveUserProgress();
         });
-
         habitItem.appendChild(checkbox);
         habitItem.appendChild(label);
+        if (rewards[idx]) habitItem.appendChild(rewardLabel);
         habitList.appendChild(habitItem);
       });
-      // Hide the pre-day controls if day has started
-      if (completedTasks > 0 || tasks.length === 10) {
+      if (completedTasks > 0 || tasks.length >= 1) {
         habitInput.style.display = "none";
+        rewardInput.style.display = "none";
         addHabitBtn.style.display = "none";
         startDayBtn.style.display = "none";
         taskCountText.style.display = "none";
@@ -601,23 +597,18 @@ window.addEventListener('DOMContentLoaded', async () => {
 
   async function saveUserProgress() {
     if (!currentUser) return;
-    
-    console.log('Saving progress:', { tasks, completedTasks, level });
-    
     try {
       const { error } = await supabase
         .from('users')
         .update({
           tasks: tasks,
+          rewards: rewards,
           completed_tasks: completedTasks,
           level: level,
         })
         .eq('id', currentUser.id);
-        
       if (error) {
         console.error('Error saving progress:', error);
-      } else {
-        console.log('Progress saved successfully');
       }
     } catch (error) {
       console.error('Error saving progress:', error);

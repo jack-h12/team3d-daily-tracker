@@ -426,10 +426,10 @@ window.addEventListener('DOMContentLoaded', async () => {
         userCard.querySelector('.reset-progress-btn').onclick = async (e) => {
           e.stopPropagation();
           const userId = e.target.getAttribute('data-user-id');
-          if (confirm('Reset this user\'s progress (tasks, completed tasks, and level) to zero?')) {
+          if (confirm('Reset this user\'s progress (tasks, completed tasks, level, and rewards) to zero?')) {
             showLoading();
             try {
-              const { error } = await supabase.from('users').update({ tasks: [], completed_tasks: 0, level: 0 }).eq('id', userId);
+              const { error } = await supabase.from('users').update({ tasks: [], rewards: [], completed_tasks: 0, level: 0 }).eq('id', userId);
               if (error) {
                 alert('Failed to reset user progress.');
               } else {

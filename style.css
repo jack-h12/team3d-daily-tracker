@@ -31,6 +31,24 @@ h1 {
   box-shadow: 0 4px 8px rgba(0,0,0,0.1);
 }
 
+.reward-input {
+  padding: 12px;
+  border: 2px solid #f5b042;
+  border-radius: 8px;
+  background-color: #fffbe7;
+  color: #222;
+  width: 180px;
+  margin-bottom: 10px;
+  font-size: 1rem;
+  box-shadow: 0 2px 6px rgba(245,176,66,0.08);
+  transition: border 0.2s;
+}
+
+.reward-input:focus {
+  border-color: #f54242;
+  outline: none;
+}
+
 /* All Buttons */
 button {
   padding: 12px 20px;

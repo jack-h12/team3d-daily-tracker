@@ -138,17 +138,17 @@ window.addEventListener('DOMContentLoaded', async () => {
     try {
       // Map levels to avatar images
       const levelAvatars = {
-        0: 'src/level-0-gollum.webp',
+        0: 'src/level-0-gollum.jpg',
         1: 'src/level-1-babythanos.webp',
         2: 'src/level-2-boythanos.jpg',
         3: 'src/level-3-injuredthanos.jpg',
-        4: 'src/level-4-basethanos.webp',
-        5: 'src/level-5-basethanosupgrade.webp',
+        4: 'src/level-4-basethanos.jpg',
+        5: 'src/level-5-basethanosupgrade.jpg',
         6: 'src/level-6-thanoswithonestone.webp',
         7: 'src/level-7-thanoswith2infinitystones.avif',
         8: 'src/level-8-thanoswith4inifinitystones.jpg',
         9: 'src/level-9-thanoswithallinfinitystones.webp',
-        10: 'src/level-10-thanosgoku.webp',
+        10: 'src/level-10-thanosgoku.jpg',
       };
 
       const { data: userData, error } = await supabase

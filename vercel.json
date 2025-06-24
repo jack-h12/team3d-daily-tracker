@@ -1,0 +1,7 @@
+{
+  "rewrites": [
+    { "source": "/api/:match*", "destination": "/api/:match*" },
+    { "source": "/group-progress", "destination": "/group-progress.html" },
+    { "source": "/profile", "destination": "/profile.html" }
+  ]
+}

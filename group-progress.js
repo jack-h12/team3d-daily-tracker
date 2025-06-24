@@ -8,17 +8,17 @@ const supabase = createClient(
 window.addEventListener('DOMContentLoaded', async () => {
   // Level avatar mapping (now using /avatars/ for correct public path)
   const levelAvatars = {
-    0: '/avatars/level-0-gollum.webp',
+    0: '/avatars/level-0-gollum.jpg',
     1: '/avatars/level-1-babythanos.webp',
     2: '/avatars/level-2-boythanos.jpg',
     3: '/avatars/level-3-injuredthanos.jpg',
-    4: '/avatars/level-4-basethanos.webp',
-    5: '/avatars/level-5-basethanosupgrade.webp',
+    4: '/avatars/level-4-basethanos.jpg',
+    5: '/avatars/level-5-basethanosupgrade.jpg',
     6: '/avatars/level-6-thanoswithonestone.webp',
     7: '/avatars/level-7-thanoswith2infinitystones.avif',
     8: '/avatars/level-8-thanoswith4inifinitystones.jpg',
     9: '/avatars/level-9-thanoswithallinfinitystones.webp',
-    10: '/avatars/level-10-thanosgoku.webp',
+    10: '/avatars/level-10-thanosgoku.jpg',
   };
 
   // Get DOM elements

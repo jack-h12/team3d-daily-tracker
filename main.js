@@ -2,7 +2,15 @@ import { createClient } from '@supabase/supabase-js';
 
 const supabase = createClient(
   'https://vpqmpfqlcftmifrumvgb.supabase.co',
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZwcW1wZnFsY2Z0bWlmcnVtdmdiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTA2MjA3NTAsImV4cCI6MjA2NjE5Njc1MH0.Tr-Kv0LhmfqkqIoNPmJ1W5J-xY7yX_sdKZ_8waFHFWg'
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZwcW1wZnFsY2Z0bWlmcnVtdmdiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTA2MjA3NTAsImV4cCI6MjA2NjE5Njc1MH0.Tr-Kv0LhmfqkqIoNPmJ1W5J-xY7yX_sdKZ_8waFHFWg',
+  {
+    auth: {
+      storage: localStorage,
+      autoRefreshToken: true,
+      persistSession: true,
+      detectSessionInUrl: true
+    }
+  }
 );
 
 window.addEventListener('DOMContentLoaded', async () => {
@@ -112,17 +120,17 @@ window.addEventListener('DOMContentLoaded', async () => {
 
   // Level avatar mapping (now using /avatars/ for correct public path)
   const levelAvatars = {
-    0: '/avatars/level-0-gollum.webp',
+    0: '/avatars/level-0-gollum.jpg',
     1: '/avatars/level-1-babythanos.webp',
     2: '/avatars/level-2-boythanos.jpg',
     3: '/avatars/level-3-injuredthanos.jpg',
-    4: '/avatars/level-4-basethanos.webp',
-    5: '/avatars/level-5-basethanosupgrade.webp',
+    4: '/avatars/level-4-basethanos.jpg',
+    5: '/avatars/level-5-basethanosupgrade.jpg',
     6: '/avatars/level-6-thanoswithonestone.webp',
     7: '/avatars/level-7-thanoswith2infinitystones.avif',
     8: '/avatars/level-8-thanoswith4inifinitystones.jpg',
     9: '/avatars/level-9-thanoswithallinfinitystones.webp',
-    10: '/avatars/level-10-thanosgoku.webp',
+    10: '/avatars/level-10-thanosgoku.jpg',
   };
 
   // Helper to update avatar image
@@ -323,13 +331,32 @@ window.addEventListener('DOMContentLoaded', async () => {
   // Logout event listener
   logoutBtn.addEventListener('click', async () => {
     try {
-      const { error } = await supabase.auth.signOut();
-      if (error) {
-        console.error('Logout error:', error);
-        authMessage.textContent = `Logout error: ${error.message}`;
+      // Get the current session
+      const { data, error: sessionError } = await supabase.auth.getSession();
+
+      if (sessionError) {
+        console.error('Error getting session before logout:', sessionError);
+        authMessage.textContent = 'Error checking session before logout.';
+        return;
+      }
+
+      if (data.session) {
+        // Only attempt to sign out if a session exists
+        const { error } = await supabase.auth.signOut();
+        if (error) {
+          console.error('Logout error:', error);
+          authMessage.textContent = `Logout error: ${error.message}`;
+        } else {
+          console.log('User successfully logged out');
+          authMessage.textContent = 'Logged out successfully.';
+        }
+      } else {
+        console.warn('No active session to log out.');
+        authMessage.textContent = 'No active session to log out.';
       }
     } catch (error) {
       console.error('Logout error:', error);
+      authMessage.textContent = `Logout error: ${error.message}`;
     }
   });
 

@@ -104,6 +104,7 @@ window.addEventListener('DOMContentLoaded', async () => {
       currentUserIsAdmin = isAdmin;
       authMessage.textContent = `Welcome, ${displayName}!`;
       showGroupSection();
+      await updateYourProgressHeader(user.id);
       await loadCommunityProgress();
     } finally {
       hideLoading();
@@ -486,9 +487,28 @@ window.addEventListener('DOMContentLoaded', async () => {
   }
 
   // Auto-refresh every 30 seconds
-  setInterval(async () => {
+  let refreshInterval = setInterval(async () => {
     if (currentUser) {
       await loadCommunityProgress();
     }
   }, 30000);
+
+  window.addEventListener('beforeunload', () => {
+    clearInterval(refreshInterval);
+  });
+
+  async function updateYourProgressHeader(userId) {
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('level')
+        .eq('id', userId)
+        .single();
+      if (!error && data && typeof data.level === 'number') {
+        document.getElementById('your-progress').textContent = `Level: ${data.level}`;
+      }
+    } catch (e) {
+      // Optionally handle error
+    }
+  }
 });

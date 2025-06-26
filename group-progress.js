@@ -43,6 +43,11 @@ window.addEventListener('DOMContentLoaded', async () => {
     loadingOverlay.classList.add('hidden');
   }
 
+  // Show UI shell immediately (hide only stats/leaderboard, not the whole page)
+  document.getElementById('group-stats').style.display = 'grid';
+  document.getElementById('leaderboard-section').style.display = 'block';
+  // Hide stats/leaderboard if not logged in later
+
   // Show loading initially
   showLoading();
 
@@ -85,18 +90,22 @@ window.addEventListener('DOMContentLoaded', async () => {
     showLoading();
     try {
       currentUser = user;
-      // Fetch user data to get the name and admin status
+      // Fetch user data (name, admin, level) and community progress in parallel
+      const userPromise = supabase
+        .from('users')
+        .select('name, is_admin, level')
+        .eq('id', user.id)
+        .single();
+      const communityPromise = loadCommunityProgress();
       let displayName = user.email;
       let isAdmin = false;
+      let userLevel = 0;
       try {
-        const { data: existingUser, error: fetchError } = await supabase
-          .from('users')
-          .select('name, is_admin')
-          .eq('id', user.id)
-          .single();
+        const { data: existingUser, error: fetchError } = await userPromise;
         if (existingUser && !fetchError) {
           displayName = existingUser.name || user.email;
           isAdmin = !!existingUser.is_admin;
+          userLevel = existingUser.level || 0;
         }
       } catch (error) {
         // fallback to email
@@ -104,8 +113,12 @@ window.addEventListener('DOMContentLoaded', async () => {
       currentUserIsAdmin = isAdmin;
       authMessage.textContent = `Welcome, ${displayName}!`;
       showGroupSection();
-      await updateYourProgressHeader(user.id);
-      await loadCommunityProgress();
+      // Only update if changed
+      const yourProgressEl = document.getElementById('your-progress');
+      if (yourProgressEl.textContent !== `Level: ${userLevel}`) {
+        yourProgressEl.textContent = `Level: ${userLevel}`;
+      }
+      await communityPromise;
     } finally {
       hideLoading();
     }
@@ -216,10 +229,11 @@ window.addEventListener('DOMContentLoaded', async () => {
     const totalCompleted = users.reduce((sum, user) => sum + (user.completed_tasks || 0), 0);
     const averageLevel = totalMembers > 0 ? (users.reduce((sum, user) => sum + (user.level || 0), 0) / totalMembers).toFixed(1) : 0;
     
-    totalMembersEl.textContent = totalMembers;
-    averageLevelEl.textContent = averageLevel;
-    totalCompletedEl.textContent = totalCompleted;
-    groupProgressEl.textContent = `${totalMembers} members, avg level ${averageLevel}`;
+    if (totalMembersEl.textContent !== String(totalMembers)) totalMembersEl.textContent = totalMembers;
+    if (averageLevelEl.textContent !== String(averageLevel)) averageLevelEl.textContent = averageLevel;
+    if (totalCompletedEl.textContent !== String(totalCompleted)) totalCompletedEl.textContent = totalCompleted;
+    const groupProgressText = `${totalMembers} members, avg level ${averageLevel}`;
+    if (groupProgressEl.textContent !== groupProgressText) groupProgressEl.textContent = groupProgressText;
   }
 
   function getUserAvatar(user) {
@@ -312,16 +326,20 @@ window.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
+  let lastLeaderboardHTML = '';
   function displayLeaderboard(users) {
     if (!currentUser) {
       leaderboard.innerHTML = '';
+      lastLeaderboardHTML = '';
       return;
     }
-    leaderboard.innerHTML = '';
     if (users.length === 0) {
       leaderboard.innerHTML = '<p>No users found.</p>';
+      lastLeaderboardHTML = leaderboard.innerHTML;
       return;
     }
+    // Build leaderboard HTML as a string for comparison
+    let leaderboardHTML = '';
     let lastLevel = null;
     let lastRank = 0;
     let equalCount = 0;
@@ -336,13 +354,10 @@ window.addEventListener('DOMContentLoaded', async () => {
       }
       rankLabels.push({ rank: lastRank, level: user.level });
     });
-    // Second pass: assign rank labels with '=' for all tied users
     users.forEach((user, index) => {
       const { rank, level } = rankLabels[index];
-      // Check if this level appears more than once
       const isTied = rankLabels.filter(r => r.level === level).length > 1;
       let rankLabel = ordinalSuffixOf(rank) + (isTied ? '=' : '');
-      // Medal only for rank 1-3 and level < 4
       let rankEmoji = '';
       if ((user.level || 0) < 4 && rank <= 3) rankEmoji = getRankEmoji(rank);
       const levelEmoji = getLevelEmoji(user.level || 0);
@@ -353,7 +368,6 @@ window.addEventListener('DOMContentLoaded', async () => {
       } else {
         avatarHTML = `<div style="width:60px;height:60px;display:flex;align-items:center;justify-content:center;font-size:2.2rem;background:#fff;border-radius:50%;border:2px solid #f54242;margin-bottom:8px;box-shadow:0 2px 8px rgba(0,0,0,0.08);margin-right:10px;">👤</div>`;
       }
-      // Level avatar (always shown)
       const userLevel = user.level !== undefined ? user.level : 0;
       const levelAvatarSrc = levelAvatars[userLevel] || levelAvatars[0];
       const levelAvatarHTML = `<img src="${levelAvatarSrc}" alt="Level Avatar" class="level-avatar" style="width:40px;height:40px;border-radius:50%;object-fit:cover;border:2px solid #f54242;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,0.08);vertical-align:middle;" title="Level Avatar">`;
@@ -376,88 +390,97 @@ window.addEventListener('DOMContentLoaded', async () => {
         resetProgressButton = `<button class="reset-progress-btn" data-user-id="${user.id}" style="margin-top:8px;background:#f5a142;color:#fff;border:none;padding:6px 14px;border-radius:6px;cursor:pointer;">Reset Progress</button>`;
         emailInfo = `<p style="font-size:0.95rem;color:#888;margin:2px 0 0 0;">${user.email}</p>`;
       }
-      const userCard = document.createElement('div');
-      userCard.className = 'user-card';
-      if (isCurrentUser) {
-        userCard.classList.add('current-user');
-      }
-      userCard.innerHTML = `
-        <div class="user-rank">
-          <span class="rank-number">${rankEmoji} #${rankLabel}</span>
-        </div>
-        <div class="user-info" style="display:flex;align-items:center;gap:8px;">
-          ${avatarHTML}
-          ${levelAvatarHTML}
-          <div style="display:flex;flex-direction:column;align-items:flex-start;">
-            <h3>${user.name || 'Anonymous'} ${isCurrentUser ? '(You)' : ''} ${adminBadge}</h3>
-            ${emailInfo}
-            <p>Level: ${user.level || 0} ${levelEmoji}</p>
-            <p>Tasks Completed: ${user.completed_tasks || 0}/10</p>
-            <p>Total Tasks: ${user.tasks ? user.tasks.length : 0}</p>
-            ${adminButton}
-            ${resetProgressButton}
-            ${removeUserButton}
+      leaderboardHTML += `
+        <div class="user-card${isCurrentUser ? ' current-user' : ''}" data-user-index="${index}" style="cursor:pointer;">
+          <div class="user-rank">
+            <span class="rank-number">${rankEmoji} #${rankLabel}</span>
           </div>
-        </div>
-        <div class="user-progress">
-          <div class="progress-bar">
-            <div class="progress-fill" style="width: ${((user.level || 0) / 10) * 100}%"></div>
+          <div class="user-info" style="display:flex;align-items:center;gap:8px;">
+            ${avatarHTML}
+            ${levelAvatarHTML}
+            <div style="display:flex;flex-direction:column;align-items:flex-start;">
+              <h3>${user.name || 'Anonymous'} ${isCurrentUser ? '(You)' : ''} ${adminBadge}</h3>
+              ${emailInfo}
+              <p>Level: ${user.level || 0} ${levelEmoji}</p>
+              <p>Tasks Completed: ${user.completed_tasks || 0}/10</p>
+              <p>Total Tasks: ${user.tasks ? user.tasks.length : 0}</p>
+              ${adminButton}
+              ${resetProgressButton}
+              ${removeUserButton}
+            </div>
+          </div>
+          <div class="user-progress">
+            <div class="progress-bar">
+              <div class="progress-fill" style="width: ${((user.level || 0) / 10) * 100}%"></div>
+            </div>
           </div>
         </div>
       `;
-      userCard.style.cursor = 'pointer';
-      userCard.onclick = (e) => {
-        if (e.target.classList.contains('toggle-admin-btn')) return;
-        showUserTasksModal(user);
-      };
-      if (adminButton) {
-        userCard.querySelector('.toggle-admin-btn').onclick = (e) => {
-          e.stopPropagation();
-          const userId = e.target.getAttribute('data-user-id');
-          const makeAdmin = e.target.getAttribute('data-make-admin') === 'true';
-          toggleAdmin(userId, makeAdmin);
-        };
-      }
-      if (removeUserButton) {
-        userCard.querySelector('.remove-user-btn').onclick = async (e) => {
-          e.stopPropagation();
-          const userId = e.target.getAttribute('data-user-id');
-          if (confirm('Are you sure you want to remove this user? This cannot be undone.')) {
-            showLoading();
-            try {
-              const { error } = await supabase.from('users').delete().eq('id', userId);
-              if (error) {
-                alert('Failed to remove user.');
-              } else {
-                await loadCommunityProgress();
-              }
-            } finally {
-              hideLoading();
-            }
-          }
-        };
-      }
-      if (resetProgressButton) {
-        userCard.querySelector('.reset-progress-btn').onclick = async (e) => {
-          e.stopPropagation();
-          const userId = e.target.getAttribute('data-user-id');
-          if (confirm('Reset this user\'s progress (tasks, completed tasks, level, and rewards) to zero?')) {
-            showLoading();
-            try {
-              const { error } = await supabase.from('users').update({ tasks: [], rewards: [], completed_tasks: 0, level: 0 }).eq('id', userId);
-              if (error) {
-                alert('Failed to reset user progress.');
-              } else {
-                await loadCommunityProgress();
-              }
-            } finally {
-              hideLoading();
-            }
-          }
-        };
-      }
-      leaderboard.appendChild(userCard);
     });
+    if (leaderboardHTML !== lastLeaderboardHTML) {
+      leaderboard.innerHTML = leaderboardHTML;
+      lastLeaderboardHTML = leaderboardHTML;
+      // Attach event listeners after rendering
+      users.forEach((user, index) => {
+        const userCard = leaderboard.querySelector(`.user-card[data-user-index='${index}']`);
+        if (!userCard) return;
+        userCard.onclick = (e) => {
+          if (e.target.classList.contains('toggle-admin-btn')) return;
+          showUserTasksModal(user);
+        };
+        if (currentUserIsAdmin && user.email !== currentUser.email) {
+          const adminBtn = userCard.querySelector('.toggle-admin-btn');
+          if (adminBtn) {
+            adminBtn.onclick = (e) => {
+              e.stopPropagation();
+              const userId = e.target.getAttribute('data-user-id');
+              const makeAdmin = e.target.getAttribute('data-make-admin') === 'true';
+              toggleAdmin(userId, makeAdmin);
+            };
+          }
+          const removeBtn = userCard.querySelector('.remove-user-btn');
+          if (removeBtn) {
+            removeBtn.onclick = async (e) => {
+              e.stopPropagation();
+              const userId = e.target.getAttribute('data-user-id');
+              if (confirm('Are you sure you want to remove this user? This cannot be undone.')) {
+                showLoading();
+                try {
+                  const { error } = await supabase.from('users').delete().eq('id', userId);
+                  if (error) {
+                    alert('Failed to remove user.');
+                  } else {
+                    await loadCommunityProgress();
+                  }
+                } finally {
+                  hideLoading();
+                }
+              }
+            };
+          }
+          const resetBtn = userCard.querySelector('.reset-progress-btn');
+          if (resetBtn) {
+            resetBtn.onclick = async (e) => {
+              e.stopPropagation();
+              const userId = e.target.getAttribute('data-user-id');
+              if (confirm('Reset this user\'s progress (tasks, completed tasks, level, and rewards) to zero?')) {
+                showLoading();
+                try {
+                  const { error } = await supabase.from('users').update({ tasks: [], rewards: [], completed_tasks: 0, level: 0 }).eq('id', userId);
+                  if (error) {
+                    alert('Failed to reset user progress.');
+                  } else {
+                    await loadCommunityProgress();
+                  }
+                } finally {
+                  hideLoading();
+                }
+              }
+            };
+          }
+        }
+      });
+    }
   }
 
   function ordinalSuffixOf(i) {
@@ -496,19 +519,4 @@ window.addEventListener('DOMContentLoaded', async () => {
   window.addEventListener('beforeunload', () => {
     clearInterval(refreshInterval);
   });
-
-  async function updateYourProgressHeader(userId) {
-    try {
-      const { data, error } = await supabase
-        .from('users')
-        .select('level')
-        .eq('id', userId)
-        .single();
-      if (!error && data && typeof data.level === 'number') {
-        document.getElementById('your-progress').textContent = `Level: ${data.level}`;
-      }
-    } catch (e) {
-      // Optionally handle error
-    }
-  }
 });

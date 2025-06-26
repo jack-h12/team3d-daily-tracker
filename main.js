@@ -1,17 +1,27 @@
-import { createClient } from '@supabase/supabase-js';
-
-const supabase = createClient(
-  'https://vpqmpfqlcftmifrumvgb.supabase.co',
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZwcW1wZnFsY2Z0bWlmcnVtdmdiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTA2MjA3NTAsImV4cCI6MjA2NjE5Njc1MH0.Tr-Kv0LhmfqkqIoNPmJ1W5J-xY7yX_sdKZ_8waFHFWg',
-  {
-    auth: {
-      storage: localStorage,
-      autoRefreshToken: true,
-      persistSession: true,
-      detectSessionInUrl: true
-    }
+// Replace top-level import and client creation with lazy loading
+// import { createClient } from '@supabase/supabase-js';
+let supabase = null;
+let supabaseLoaded = false;
+async function loadSupabase() {
+  if (!supabaseLoaded) {
+    showLoading();
+    const { createClient } = await import('@supabase/supabase-js');
+    supabase = createClient(
+      'https://vpqmpfqlcftmifrumvgb.supabase.co',
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZwcW1wZnFsY2Z0bWlmcnVtdmdiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTA2MjA3NTAsImV4cCI6MjA2NjE5Njc1MH0.Tr-Kv0LhmfqkqIoNPmJ1W5J-xY7yX_sdKZ_8waFHFWg',
+      {
+        auth: {
+          storage: localStorage,
+          autoRefreshToken: true,
+          persistSession: true,
+          detectSessionInUrl: true
+        }
+      }
+    );
+    supabaseLoaded = true;
+    hideLoading();
   }
-);
+}
 
 window.addEventListener('DOMContentLoaded', async () => {
   // Add avatar card to main page FIRST
@@ -150,6 +160,7 @@ window.addEventListener('DOMContentLoaded', async () => {
 
   // Check initial session
   try {
+    await loadSupabase();
     const { data: { session }, error } = await supabase.auth.getSession();
     
     if (error) {
@@ -318,6 +329,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   // Google login event listener
   loginGoogleBtn.addEventListener('click', async () => {
     try {
+      await loadSupabase();
       authMessage.textContent = 'Signing in...';
       
       const { data, error } = await supabase.auth.signInWithOAuth({

@@ -369,25 +369,105 @@ window.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
-  addHabitBtn.addEventListener('click', async () => {
-    const habitText = habitInput.value.trim();
-    const rewardText = rewardInput.value.trim();
-    if (habitText !== "" && tasks.length < 10) {
-      tasks.push(habitText);
-      rewards.push(rewardText); // Can be empty string
-      taskCountText.textContent = `Tasks added: ${tasks.length} / 10`;
-      habitInput.value = "";
-      rewardInput.value = "";
+  // --- DRAG AND DROP REORDERING FOR TASKS ---
+  function enableDragAndDrop() {
+    let dragSrcEl = null;
+    let dragSrcIdx = null;
+
+    function handleDragStart(e) {
+      dragSrcEl = this;
+      dragSrcIdx = Array.from(preDayList.children).indexOf(this);
+      this.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/html', this.innerHTML);
+    }
+
+    function handleDragOver(e) {
+      if (e.preventDefault) e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      return false;
+    }
+
+    function handleDragEnter() {
+      this.classList.add('over');
+    }
+
+    function handleDragLeave() {
+      this.classList.remove('over');
+    }
+
+    function handleDrop(e) {
+      if (e.stopPropagation) e.stopPropagation();
+      if (dragSrcEl !== this) {
+        const dropIdx = Array.from(preDayList.children).indexOf(this);
+        // Swap in tasks/rewards arrays
+        [tasks[dragSrcIdx], tasks[dropIdx]] = [tasks[dropIdx], tasks[dragSrcIdx]];
+        [rewards[dragSrcIdx], rewards[dropIdx]] = [rewards[dropIdx], rewards[dragSrcIdx]];
+        // Re-render
+        renderPreDayList();
+        saveUserProgress();
+      }
+      return false;
+    }
+
+    function handleDragEnd() {
+      this.classList.remove('dragging');
+      Array.from(preDayList.children).forEach(item => item.classList.remove('over'));
+    }
+
+    Array.from(preDayList.children).forEach(item => {
+      item.setAttribute('draggable', 'true');
+      item.addEventListener('dragstart', handleDragStart);
+      item.addEventListener('dragover', handleDragOver);
+      item.addEventListener('dragenter', handleDragEnter);
+      item.addEventListener('dragleave', handleDragLeave);
+      item.addEventListener('drop', handleDrop);
+      item.addEventListener('dragend', handleDragEnd);
+    });
+  }
+
+  function renderPreDayList() {
+    preDayList.innerHTML = "";
+    tasks.forEach((task, idx) => {
       const taskItem = document.createElement('div');
       taskItem.classList.add('habit-item');
-      const label = document.createElement('span');
-      label.textContent = habitText;
-      // Reward display (optional)
-      const rewardLabel = document.createElement('span');
+      // Completion checkbox
+      const checkbox = document.createElement('input');
+      checkbox.type = 'checkbox';
+      checkbox.checked = idx < completedTasks;
+      checkbox.addEventListener('change', async () => {
+        // Count checked boxes to set completedTasks
+        const allCheckboxes = preDayList.querySelectorAll('input[type="checkbox"]');
+        completedTasks = Array.from(allCheckboxes).filter(cb => cb.checked).length;
+        updateLevel();
+        await saveUserProgress();
+      });
+      // Editable task text
+      const label = document.createElement('input');
+      label.type = 'text';
+      label.value = task;
+      label.className = 'task-edit-input';
+      label.style.flex = '1';
+      label.style.marginLeft = '10px';
+      label.addEventListener('change', async () => {
+        tasks[idx] = label.value;
+        await saveUserProgress();
+      });
+      // Editable reward
+      const rewardLabel = document.createElement('input');
+      rewardLabel.type = 'text';
+      rewardLabel.value = rewards[idx] || '';
+      rewardLabel.className = 'reward-edit-input';
       rewardLabel.style.fontStyle = 'italic';
       rewardLabel.style.color = '#888';
       rewardLabel.style.marginLeft = '10px';
-      if (rewardText) rewardLabel.textContent = `🎁 ${rewardText}`;
+      rewardLabel.style.width = '100px';
+      rewardLabel.placeholder = 'Reward (optional)';
+      rewardLabel.addEventListener('change', async () => {
+        rewards[idx] = rewardLabel.value;
+        await saveUserProgress();
+      });
+      // Remove button
       const removeBtn = document.createElement('button');
       removeBtn.textContent = '❌';
       removeBtn.style.marginLeft = 'auto';
@@ -403,196 +483,50 @@ window.addEventListener('DOMContentLoaded', async () => {
       removeBtn.style.alignItems = 'center';
       removeBtn.style.justifyContent = 'center';
       removeBtn.addEventListener('click', async () => {
-        const index = tasks.indexOf(habitText);
-        if (index > -1) {
-          tasks.splice(index, 1);
-          rewards.splice(index, 1);
-        }
-        preDayList.removeChild(taskItem);
+        lastDeletedTask = tasks[idx];
+        lastDeletedReward = rewards[idx];
+        lastDeletedIndex = idx;
+        tasks.splice(idx, 1);
+        rewards.splice(idx, 1);
+        renderPreDayList();
         taskCountText.textContent = `Tasks added: ${tasks.length} / 10`;
         startDayBtn.disabled = tasks.length < 1;
         await saveUserProgress();
+        showUndoBar();
       });
+      taskItem.appendChild(checkbox);
       taskItem.appendChild(label);
-      if (rewardText) taskItem.appendChild(rewardLabel);
+      taskItem.appendChild(rewardLabel);
       taskItem.appendChild(removeBtn);
       preDayList.appendChild(taskItem);
-      startDayBtn.disabled = tasks.length < 1;
+    });
+    enableDragAndDrop();
+    startDayBtn.disabled = tasks.length < 1;
+    taskCountText.textContent = `Tasks added: ${tasks.length} / 10`;
+  }
+
+  // Replace all preDayList rendering with renderPreDayList()
+  // In addHabitBtn click handler:
+  addHabitBtn.addEventListener('click', async () => {
+    const habitText = habitInput.value.trim();
+    const rewardText = rewardInput.value.trim();
+    if (habitText !== "" && tasks.length < 10) {
+      tasks.push(habitText);
+      rewards.push(rewardText); // Can be empty string
+      habitInput.value = "";
+      rewardInput.value = "";
+      renderPreDayList();
       await saveUserProgress();
     }
   });
 
-  startDayBtn.addEventListener('click', async () => {
-    completedTasks = 0;
-    level = 0;
-    updateLevel();
-    habitList.innerHTML = "";
-    preDayList.innerHTML = "";
-    tasks.forEach((task, idx) => {
-      const habitItem = document.createElement('div');
-      habitItem.classList.add('habit-item');
-      const checkbox = document.createElement('input');
-      checkbox.type = 'checkbox';
-      const label = document.createElement('span');
-      label.textContent = task;
-      // Reward display (optional)
-      const rewardLabel = document.createElement('span');
-      rewardLabel.style.fontStyle = 'italic';
-      rewardLabel.style.color = '#888';
-      rewardLabel.style.marginLeft = '10px';
-      if (rewards[idx]) rewardLabel.textContent = `🎁 ${rewards[idx]}`;
-      checkbox.addEventListener('change', async () => {
-        if (checkbox.checked) {
-          completedTasks = Math.min(completedTasks + 1, 10);
-        } else {
-          completedTasks = Math.max(completedTasks - 1, 0);
-        }
-        updateLevel();
-        label.style.textDecoration = checkbox.checked ? 'line-through' : 'none';
-        await saveUserProgress();
-      });
-      habitItem.appendChild(checkbox);
-      habitItem.appendChild(label);
-      if (rewards[idx]) habitItem.appendChild(rewardLabel);
-      habitList.appendChild(habitItem);
-    });
-    habitInput.style.display = "none";
-    rewardInput.style.display = "none";
-    addHabitBtn.style.display = "none";
-    startDayBtn.style.display = "none";
-    taskCountText.style.display = "none";
-    await saveUserProgress();
-  });
-
-  clearBtn.addEventListener('click', async () => {
-    tasks = [];
-    rewards = [];
-    completedTasks = 0;
-    level = 0;
-    preDayList.innerHTML = "";
-    habitList.innerHTML = "";
-    habitInput.style.display = "block";
-    rewardInput.style.display = "block";
-    addHabitBtn.style.display = "inline-block";
-    startDayBtn.style.display = "inline-block";
-    taskCountText.style.display = "block";
-    habitInput.value = "";
-    rewardInput.value = "";
-    taskCountText.textContent = "Tasks added: 0 / 10";
-    yourProgress.textContent = "Level: 0";
-    levelText.textContent = "Level: 0";
-    startDayBtn.disabled = true;
-    await saveUserProgress();
-  });
-
-  function updateLevel() {
-    level = completedTasks;
-
-    if (level > 10) level = 10;
-
-    if (level === 10) {
-      yourProgress.textContent = "Level: 10";
-      levelText.textContent = "🔥🦍🦍  LFG!!!!! DAY CONQUERED — LEVEL 10 🦍🦍🔥";
-    } else {
-      yourProgress.textContent = `Level: ${level}`;
-      levelText.textContent = `Level: ${level}`;
-    }
-    // Update the level avatar live, always pass avatar_url
-    updateMainAvatar({ avatar_url: currentUserAvatarUrl, level });
-  }
-
+  // In loadUserProgress, replace preDayList rendering with renderPreDayList()
   function loadUserProgress() {
     taskCountText.textContent = `Tasks added: ${tasks.length} / 10`;
     updateLevel();
     preDayList.innerHTML = "";
     habitList.innerHTML = "";
-    if (tasks.length > 0 && completedTasks === 0) {
-      tasks.forEach((task, idx) => {
-        const taskItem = document.createElement('div');
-        taskItem.classList.add('habit-item');
-        const label = document.createElement('span');
-        label.textContent = task;
-        // Reward display (optional)
-        const rewardLabel = document.createElement('span');
-        rewardLabel.style.fontStyle = 'italic';
-        rewardLabel.style.color = '#888';
-        rewardLabel.style.marginLeft = '10px';
-        if (rewards[idx]) rewardLabel.textContent = `🎁 ${rewards[idx]}`;
-        const removeBtn = document.createElement('button');
-        removeBtn.textContent = '❌';
-        removeBtn.style.marginLeft = 'auto';
-        removeBtn.style.background = 'transparent';
-        removeBtn.style.border = 'none';
-        removeBtn.style.color = '#f54242';
-        removeBtn.style.fontSize = '1rem';
-        removeBtn.style.cursor = 'pointer';
-        removeBtn.style.padding = '0 6px';
-        removeBtn.style.lineHeight = '1';
-        removeBtn.style.userSelect = 'none';
-        removeBtn.style.display = 'flex';
-        removeBtn.style.alignItems = 'center';
-        removeBtn.style.justifyContent = 'center';
-        removeBtn.addEventListener('click', async () => {
-          const index = tasks.indexOf(task);
-          if (index > -1) {
-            tasks.splice(index, 1);
-            rewards.splice(index, 1);
-          }
-          preDayList.removeChild(taskItem);
-          taskCountText.textContent = `Tasks added: ${tasks.length} / 10`;
-          startDayBtn.disabled = tasks.length < 1;
-          await saveUserProgress();
-        });
-        taskItem.appendChild(label);
-        if (rewards[idx]) taskItem.appendChild(rewardLabel);
-        taskItem.appendChild(removeBtn);
-        preDayList.appendChild(taskItem);
-      });
-      startDayBtn.disabled = tasks.length < 1;
-    }
-    else if (tasks.length > 0 && completedTasks > 0) {
-      let currentCompletedCount = 0;
-      tasks.forEach((task, idx) => {
-        const habitItem = document.createElement('div');
-        habitItem.classList.add('habit-item');
-        const checkbox = document.createElement('input');
-        checkbox.type = 'checkbox';
-        if (currentCompletedCount < completedTasks) {
-          checkbox.checked = true;
-          currentCompletedCount++;
-        }
-        const label = document.createElement('span');
-        label.textContent = task;
-        label.style.textDecoration = checkbox.checked ? 'line-through' : 'none';
-        // Reward display (optional)
-        const rewardLabel = document.createElement('span');
-        rewardLabel.style.fontStyle = 'italic';
-        rewardLabel.style.color = '#888';
-        rewardLabel.style.marginLeft = '10px';
-        if (rewards[idx]) rewardLabel.textContent = `🎁 ${rewards[idx]}`;
-        checkbox.addEventListener('change', async () => {
-          if (checkbox.checked) {
-            completedTasks = Math.min(completedTasks + 1, 10);
-          } else {
-            completedTasks = Math.max(completedTasks - 1, 0);
-          }
-          updateLevel();
-          label.style.textDecoration = checkbox.checked ? 'line-through' : 'none';
-          await saveUserProgress();
-        });
-        habitItem.appendChild(checkbox);
-        habitItem.appendChild(label);
-        if (rewards[idx]) habitItem.appendChild(rewardLabel);
-        habitList.appendChild(habitItem);
-      });
-      if (completedTasks > 0 || tasks.length >= 1) {
-        habitInput.style.display = "none";
-        rewardInput.style.display = "none";
-        addHabitBtn.style.display = "none";
-        startDayBtn.style.display = "none";
-        taskCountText.style.display = "none";
-      }
-    }
+    renderPreDayList();
   }
 
   async function saveUserProgress() {
@@ -613,5 +547,84 @@ window.addEventListener('DOMContentLoaded', async () => {
     } catch (error) {
       console.error('Error saving progress:', error);
     }
+  }
+
+  function updateLevel() {
+    level = completedTasks;
+
+    if (level > 10) level = 10;
+
+    if (level === 10) {
+      yourProgress.textContent = "Level: 10";
+      levelText.textContent = "🔥🦍🦍  LFG!!!!! DAY CONQUERED — LEVEL 10 🦍🦍🔥";
+    } else {
+      yourProgress.textContent = `Level: ${level}`;
+      levelText.textContent = `Level: ${level}`;
+    }
+    // Update the level avatar live, always pass avatar_url
+    updateMainAvatar({ avatar_url: currentUserAvatarUrl, level });
+  }
+
+  // --- Undo bar for task deletion ---
+  let undoTimeout = null;
+  let lastDeletedTask = null;
+  let lastDeletedReward = null;
+  let lastDeletedIndex = null;
+  let undoBar = null;
+
+  function showUndoBar() {
+    if (!undoBar) {
+      undoBar = document.createElement('div');
+      undoBar.id = 'undo-bar';
+      undoBar.style.position = 'fixed';
+      undoBar.style.bottom = '32px';
+      undoBar.style.left = '50%';
+      undoBar.style.transform = 'translateX(-50%)';
+      undoBar.style.background = '#fff';
+      undoBar.style.color = '#222';
+      undoBar.style.border = '2px solid #f54242';
+      undoBar.style.borderRadius = '10px';
+      undoBar.style.boxShadow = '0 4px 16px rgba(0,0,0,0.12)';
+      undoBar.style.padding = '16px 32px';
+      undoBar.style.zIndex = '3000';
+      undoBar.style.display = 'flex';
+      undoBar.style.alignItems = 'center';
+      undoBar.style.gap = '16px';
+      document.body.appendChild(undoBar);
+    }
+    undoBar.innerHTML = `<span>Task deleted.</span>`;
+    const undoBtn = document.createElement('button');
+    undoBtn.textContent = 'Undo';
+    undoBtn.style.background = 'linear-gradient(to right, #28a745, #20c997)';
+    undoBtn.style.color = '#fff';
+    undoBtn.style.border = 'none';
+    undoBtn.style.borderRadius = '8px';
+    undoBtn.style.padding = '8px 20px';
+    undoBtn.style.fontWeight = 'bold';
+    undoBtn.style.cursor = 'pointer';
+    undoBtn.addEventListener('click', () => {
+      if (lastDeletedTask !== null && lastDeletedIndex !== null) {
+        tasks.splice(lastDeletedIndex, 0, lastDeletedTask);
+        rewards.splice(lastDeletedIndex, 0, lastDeletedReward);
+        renderPreDayList();
+        saveUserProgress();
+        lastDeletedTask = null;
+        lastDeletedReward = null;
+        lastDeletedIndex = null;
+        hideUndoBar();
+      }
+    });
+    undoBar.appendChild(undoBtn);
+    undoBar.style.display = 'flex';
+    if (undoTimeout) clearTimeout(undoTimeout);
+    undoTimeout = setTimeout(() => {
+      hideUndoBar();
+      lastDeletedTask = null;
+      lastDeletedReward = null;
+      lastDeletedIndex = null;
+    }, 5000);
+  }
+  function hideUndoBar() {
+    if (undoBar) undoBar.style.display = 'none';
   }
 });

@@ -141,7 +141,7 @@ button:disabled {
   font-weight: bold;
   font-size: 1.1rem;
   color: inherit;
-}
+} 
 
 /* Lists */
 #habit-list, #pre-day-list {
